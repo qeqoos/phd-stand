@@ -1,0 +1,91 @@
+# Lab check (P2, week 1): self-hosted runner + actions/attest@v4 + actions/cache.
+# Run manually only. Paste the job logs (or the "SUMMARY" lines) back into the chat.
+name: check-runner
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  attest:
+    runs-on: [self-hosted, linux]
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Runner info
+        run: |
+          echo "SUMMARY runner_environment=${RUNNER_ENVIRONMENT:-unset}"
+          echo "SUMMARY runner_name=$RUNNER_NAME os=$RUNNER_OS arch=$RUNNER_ARCH"
+          echo "SUMMARY repo_visibility=${{ github.event.repository.visibility }}"
+          echo "SUMMARY runner_tool_cache=$RUNNER_TOOL_CACHE"
+          echo "SUMMARY workspace=$GITHUB_WORKSPACE"
+          uname -a; id
+
+      - name: Downloaded actions (input for build-inputs attestation)
+        run: |
+          ACT_DIR="$(dirname "$RUNNER_WORKSPACE")/_actions"
+          echo "SUMMARY actions_dir=$ACT_DIR exists=$([ -d "$ACT_DIR" ] && echo yes || echo no)"
+          find "$ACT_DIR" -mindepth 3 -maxdepth 3 -type d 2>/dev/null | while read d; do
+            h=$(find "$d" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16)
+            echo "SUMMARY action_dir=${d#$ACT_DIR/} tree_sha256=$h"
+          done
+          ls -la "$ACT_DIR"/*/* 2>/dev/null | head -50
+
+      - name: Build
+        run: make my-app && ./my-app
+
+      - name: Attest (default predicate)
+        id: attest
+        uses: actions/attest@v4
+        with:
+          subject-path: '${{ github.workspace }}/my-app'
+
+      - name: Decode predicate
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          echo "SUMMARY attestation_id=${{ steps.attest.outputs.attestation-id }}"
+          echo "SUMMARY attestation_url=${{ steps.attest.outputs.attestation-url }}"
+          echo "SUMMARY bundle_path=$BUNDLE"
+          [ -f "$BUNDLE" ] || { echo "SUMMARY bundle=missing"; exit 0; }
+          grep -o '"payload":"[^"]*"' "$BUNDLE" | head -1 | cut -d'"' -f4 | base64 -d > statement.json
+          echo "----- in-toto statement -----"; cat statement.json; echo
+          grep -o '"builder":{[^}]*}' statement.json | sed 's/^/SUMMARY /'
+          grep -o '"predicateType":"[^"]*"' statement.json | sed 's/^/SUMMARY /'
+
+  cache-write:
+    runs-on: [self-hosted, linux]
+    permissions:
+      contents: read
+    steps:
+      - name: Create cache content
+        run: mkdir -p labcache && date -u +%s > labcache/stamp && echo "SUMMARY cache_written=$(cat labcache/stamp)"
+      - uses: actions/cache/save@v4
+        with:
+          path: labcache
+          key: lab-cache-${{ github.run_id }}
+      - name: Cache backend
+        run: |
+          echo "SUMMARY ACTIONS_CACHE_URL=${ACTIONS_CACHE_URL:+set}"
+          echo "SUMMARY ACTIONS_RESULTS_URL=${ACTIONS_RESULTS_URL:+set}"
+          echo "SUMMARY ACTIONS_CACHE_SERVICE_V2=${ACTIONS_CACHE_SERVICE_V2:-unset}"
+
+  cache-read:
+    needs: cache-write
+    runs-on: [self-hosted, linux]
+    permissions:
+      contents: read
+    steps:
+      - name: Wipe local copy (proves restore comes from GitHub cache service)
+        run: rm -rf labcache
+      - id: restore
+        uses: actions/cache/restore@v4
+        with:
+          path: labcache
+          key: lab-cache-${{ github.run_id }}
+      - run: echo "SUMMARY cache_hit=${{ steps.restore.outputs.cache-hit }} restored=$(cat labcache/stamp 2>/dev/null || echo none)"
