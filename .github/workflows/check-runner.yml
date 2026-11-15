@@ -15,7 +15,7 @@ jobs:
       contents: read
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Runner info
         run: |
@@ -65,7 +65,7 @@ jobs:
     steps:
       - name: Create cache content
         run: mkdir -p labcache && date -u +%s > labcache/stamp && echo "SUMMARY cache_written=$(cat labcache/stamp)"
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         with:
           path: labcache
           key: lab-cache-${{ github.run_id }}
@@ -84,7 +84,7 @@ jobs:
       - name: Wipe local copy (proves restore comes from GitHub cache service)
         run: rm -rf labcache
       - id: restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: labcache
           key: lab-cache-${{ github.run_id }}
