@@ -1,0 +1,44 @@
+{
+  "collected_at": "2026-11-17T20:50:42+00:00",
+  "frame": "ecosyste.ms packages?sort=downloads (pages 1..1)",
+  "top": 50,
+  "fetch_workflow": true,
+  "downloads": true,
+  "n_packages": 50,
+  "status": {
+    "provenance": 13,
+    "no_attestations": 37
+  },
+  "n_provenance": 13,
+  "share_provenance": 0.26,
+  "predicate_type": {
+    "https://slsa.dev/provenance/v1": 13
+  },
+  "build_type": {
+    "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1": 13
+  },
+  "runner_environment": {
+    "github-hosted": 13
+  },
+  "event_name": {
+    "push": 11,
+    "workflow_dispatch": 2
+  },
+  "builder_id": {
+    "https://github.com/actions/runner/github-hosted": 13
+  },
+  "resolved_deps_n": {
+    "1": 13
+  },
+  "workflow_path_top": {
+    ".github/workflows/release.yml": 7,
+    ".github/workflows/release-please.yml": 2,
+    ".github/workflows/publish.yml": 2,
+    ".github/workflows/publish-on-tag.yml": 1,
+    ".github/workflows/runtime_release_from_ci.yml": 1
+  },
+  "workflow_fetch": {
+    "ok": 13
+  },
+  "non_github_repo": 0
+}
